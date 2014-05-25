@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# chkconfig: 2345 80 20
+# description: BitNami Redmine
+
 # Allow only root execution
 if [ `id|sed -e s/uid=//g -e s/\(.*//g` -ne 0 ]; then
     echo "This script requires root privileges"
