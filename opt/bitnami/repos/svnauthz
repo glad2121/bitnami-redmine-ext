@@ -1,0 +1,6 @@
+# common settings
+[/]
+admin = rw
+* = rw
+guest = r
+
