@@ -228,6 +228,15 @@ ActiveRecord::Schema.define(:version => 20140228130325) do
 
   add_index "groups_users", ["group_id", "user_id"], :name => "groups_users_ids", :unique => true
 
+  create_table "import_in_progresses", :force => true do |t|
+    t.integer  "user_id",                        :null => false
+    t.string   "quote_char", :limit => 8
+    t.string   "col_sep",    :limit => 8
+    t.string   "encoding",   :limit => 64
+    t.datetime "created"
+    t.binary   "csv_data",   :limit => 16777215
+  end
+
   create_table "issue_categories", :force => true do |t|
     t.integer "project_id",                   :default => 0,  :null => false
     t.string  "name",           :limit => 30, :default => "", :null => false
