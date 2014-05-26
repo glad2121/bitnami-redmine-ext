@@ -66,6 +66,18 @@ ActiveRecord::Schema.define(:version => 20140228130325) do
   add_index "boards", ["last_message_id"], :name => "index_boards_on_last_message_id"
   add_index "boards", ["project_id"], :name => "boards_project_id"
 
+  create_table "burndown_days", :force => true do |t|
+    t.integer  "points_committed", :default => 0,   :null => false
+    t.integer  "points_accepted",  :default => 0,   :null => false
+    t.integer  "points_resolved",  :default => 0,   :null => false
+    t.float    "remaining_hours",  :default => 0.0, :null => false
+    t.integer  "version_id",                        :null => false
+    t.datetime "created_at",                        :null => false
+    t.datetime "updated_at",                        :null => false
+  end
+
+  add_index "burndown_days", ["version_id"], :name => "index_burndown_days_on_version_id"
+
   create_table "changes", :force => true do |t|
     t.integer "changeset_id",                               :null => false
     t.string  "action",        :limit => 1, :default => "", :null => false
@@ -249,29 +261,34 @@ ActiveRecord::Schema.define(:version => 20140228130325) do
   add_index "issue_statuses", ["position"], :name => "index_issue_statuses_on_position"
 
   create_table "issues", :force => true do |t|
-    t.integer  "tracker_id",                          :null => false
-    t.integer  "project_id",                          :null => false
-    t.string   "subject",          :default => "",    :null => false
+    t.integer  "tracker_id",                               :null => false
+    t.integer  "project_id",                               :null => false
+    t.string   "subject",              :default => "",     :null => false
     t.text     "description"
     t.date     "due_date"
     t.integer  "category_id"
-    t.integer  "status_id",                           :null => false
+    t.integer  "status_id",                                :null => false
     t.integer  "assigned_to_id"
-    t.integer  "priority_id",                         :null => false
+    t.integer  "priority_id",                              :null => false
     t.integer  "fixed_version_id"
-    t.integer  "author_id",                           :null => false
-    t.integer  "lock_version",     :default => 0,     :null => false
+    t.integer  "author_id",                                :null => false
+    t.integer  "lock_version",         :default => 0,      :null => false
     t.datetime "created_on"
     t.datetime "updated_on"
     t.date     "start_date"
-    t.integer  "done_ratio",       :default => 0,     :null => false
+    t.integer  "done_ratio",           :default => 0,      :null => false
     t.float    "estimated_hours"
     t.integer  "parent_id"
     t.integer  "root_id"
     t.integer  "lft"
     t.integer  "rgt"
-    t.boolean  "is_private",       :default => false, :null => false
+    t.boolean  "is_private",           :default => false,  :null => false
     t.datetime "closed_on"
+    t.integer  "position",                                 :null => false
+    t.float    "remaining_hours"
+    t.integer  "release_id"
+    t.float    "story_points"
+    t.string   "release_relationship", :default => "auto", :null => false
   end
 
   add_index "issues", ["assigned_to_id"], :name => "index_issues_on_assigned_to_id"
@@ -279,8 +296,11 @@ ActiveRecord::Schema.define(:version => 20140228130325) do
   add_index "issues", ["category_id"], :name => "index_issues_on_category_id"
   add_index "issues", ["created_on"], :name => "index_issues_on_created_on"
   add_index "issues", ["fixed_version_id"], :name => "index_issues_on_fixed_version_id"
+  add_index "issues", ["position"], :name => "index_issues_on_position"
   add_index "issues", ["priority_id"], :name => "index_issues_on_priority_id"
   add_index "issues", ["project_id"], :name => "issues_project_id"
+  add_index "issues", ["release_id"], :name => "index_issues_on_release_id"
+  add_index "issues", ["release_relationship"], :name => "index_issues_on_release_relationship"
   add_index "issues", ["root_id", "lft", "rgt"], :name => "index_issues_on_root_id_and_lft_and_rgt"
   add_index "issues", ["status_id"], :name => "index_issues_on_status_id"
   add_index "issues", ["tracker_id"], :name => "index_issues_on_tracker_id"
@@ -427,19 +447,82 @@ ActiveRecord::Schema.define(:version => 20140228130325) do
 
   add_index "queries_roles", ["query_id", "role_id"], :name => "queries_roles_ids", :unique => true
 
+  create_table "rb_issue_history", :force => true do |t|
+    t.integer "issue_id", :default => 0, :null => false
+    t.text    "history"
+  end
+
+  add_index "rb_issue_history", ["issue_id"], :name => "index_rb_issue_history_on_issue_id", :unique => true
+
+  create_table "rb_project_settings", :force => true do |t|
+    t.integer "project_id"
+    t.boolean "show_stories_from_subprojects", :default => true, :null => false
+    t.boolean "show_in_scrum_stats",           :default => true, :null => false
+  end
+
+  create_table "rb_release_burnchart_day_caches", :id => false, :force => true do |t|
+    t.integer "issue_id",                       :null => false
+    t.integer "release_id",                     :null => false
+    t.date    "day",                            :null => false
+    t.float   "total_points",  :default => 0.0, :null => false
+    t.float   "added_points",  :default => 0.0, :null => false
+    t.float   "closed_points", :default => 0.0, :null => false
+  end
+
+  add_index "rb_release_burnchart_day_caches", ["day"], :name => "index_rb_release_burnchart_day_caches_on_day"
+  add_index "rb_release_burnchart_day_caches", ["issue_id"], :name => "index_rb_release_burnchart_day_caches_on_issue_id"
+  add_index "rb_release_burnchart_day_caches", ["release_id"], :name => "index_rb_release_burnchart_day_caches_on_release_id"
+
+  create_table "rb_releases_multiview", :force => true do |t|
+    t.string  "name",        :null => false
+    t.text    "description"
+    t.integer "project_id"
+    t.text    "release_ids"
+  end
+
+  create_table "rb_sprint_burndown", :force => true do |t|
+    t.integer  "version_id", :default => 0, :null => false
+    t.text     "stories"
+    t.text     "burndown"
+    t.datetime "created_at",                :null => false
+    t.datetime "updated_at",                :null => false
+  end
+
+  add_index "rb_sprint_burndown", ["version_id"], :name => "index_rb_sprint_burndown_on_version_id", :unique => true
+
+  create_table "releases", :force => true do |t|
+    t.string   "name",                                   :null => false
+    t.date     "release_start_date",                     :null => false
+    t.date     "release_end_date",                       :null => false
+    t.integer  "project_id",                             :null => false
+    t.datetime "created_at",                             :null => false
+    t.datetime "updated_at",                             :null => false
+    t.string   "sharing",            :default => "none", :null => false
+    t.string   "status",             :default => "open", :null => false
+    t.text     "description"
+    t.float    "planned_velocity"
+  end
+
+  add_index "releases", ["project_id"], :name => "index_releases_on_project_id"
+  add_index "releases", ["release_end_date"], :name => "index_releases_on_release_end_date"
+  add_index "releases", ["release_start_date"], :name => "index_releases_on_release_start_date"
+  add_index "releases", ["sharing"], :name => "index_releases_on_sharing"
+  add_index "releases", ["status"], :name => "index_releases_on_status"
+
   create_table "repositories", :force => true do |t|
-    t.integer  "project_id",                  :default => 0,     :null => false
-    t.string   "url",                         :default => "",    :null => false
-    t.string   "login",         :limit => 60, :default => ""
-    t.string   "password",                    :default => ""
-    t.string   "root_url",                    :default => ""
+    t.integer  "project_id",                     :default => 0,     :null => false
+    t.string   "url",                            :default => "",    :null => false
+    t.string   "login",            :limit => 60, :default => ""
+    t.string   "password",                       :default => ""
+    t.string   "root_url",                       :default => ""
     t.string   "type"
-    t.string   "path_encoding", :limit => 64
-    t.string   "log_encoding",  :limit => 64
+    t.string   "path_encoding",    :limit => 64
+    t.string   "log_encoding",     :limit => 64
     t.text     "extra_info"
     t.string   "identifier"
-    t.boolean  "is_default",                  :default => false
+    t.boolean  "is_default",                     :default => false
     t.datetime "created_on"
+    t.boolean  "created_with_scm",               :default => false, :null => false
   end
 
   add_index "repositories", ["project_id"], :name => "index_repositories_on_project_id"
@@ -534,15 +617,16 @@ ActiveRecord::Schema.define(:version => 20140228130325) do
   add_index "users", ["type"], :name => "index_users_on_type"
 
   create_table "versions", :force => true do |t|
-    t.integer  "project_id",      :default => 0,      :null => false
-    t.string   "name",            :default => "",     :null => false
-    t.string   "description",     :default => ""
+    t.integer  "project_id",        :default => 0,      :null => false
+    t.string   "name",              :default => "",     :null => false
+    t.string   "description",       :default => ""
     t.date     "effective_date"
     t.datetime "created_on"
     t.datetime "updated_on"
     t.string   "wiki_page_title"
-    t.string   "status",          :default => "open"
-    t.string   "sharing",         :default => "none", :null => false
+    t.string   "status",            :default => "open"
+    t.string   "sharing",           :default => "none", :null => false
+    t.date     "sprint_start_date"
   end
 
   add_index "versions", ["project_id"], :name => "versions_project_id"
