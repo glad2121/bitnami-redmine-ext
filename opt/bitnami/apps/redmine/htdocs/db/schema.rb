@@ -52,6 +52,18 @@ ActiveRecord::Schema.define(:version => 20140228130325) do
 
   add_index "auth_sources", ["id", "type"], :name => "index_auth_sources_on_id_and_type"
 
+  create_table "banners", :force => true do |t|
+    t.boolean  "enabled"
+    t.string   "style",              :default => "info", :null => false
+    t.string   "banner_description"
+    t.boolean  "use_timer"
+    t.datetime "start_date"
+    t.datetime "end_date"
+    t.integer  "project_id",                             :null => false
+    t.datetime "updated_on"
+    t.string   "display_part",       :default => "all",  :null => false
+  end
+
   create_table "boards", :force => true do |t|
     t.integer "project_id",                      :null => false
     t.string  "name",            :default => "", :null => false
