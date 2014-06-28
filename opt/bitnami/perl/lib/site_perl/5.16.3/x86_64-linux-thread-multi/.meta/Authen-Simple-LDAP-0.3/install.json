@@ -1,1 +1,0 @@
-{"provides":{"Authen::Simple::LDAP":{"version":"0.3","file":"lib/Authen/Simple/LDAP.pm"},"Authen::Simple::ActiveDirectory":{"version":"0.3","file":"lib/Authen/Simple/ActiveDirectory.pm"}},"target":"Authen::Simple::LDAP","version":"0.3","name":"Authen::Simple::LDAP","dist":"Authen-Simple-LDAP-0.3","pathname":"C/CH/CHANSEN/Authen-Simple-LDAP-0.3.tar.gz"}
